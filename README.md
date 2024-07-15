@@ -2,10 +2,10 @@
 
 ## Installation
 
-# Clone repository
+### Clone repository
   git clone https://github.com/adelaidetovar/MPRA-Nextflow.git
 
-# Install Nextflow and dependencies
+### Install Nextflow and dependencies
 All required software is provided by a Singularity container within the pipeline. It is recommended to install Nextflow within a new conda environment.
 
 ## Running the pipeline
