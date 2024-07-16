@@ -37,8 +37,8 @@ def helpMsg () {
         --bc_len                    MPRA barcode length (default: 20)
         --umi_dist                  Levenshtein distance used for clustering UMIs (default: 2)
         --bc_dist                   Levenshtein distance used for clustering (deduplicated) barcodes (default: 2)
-        --ignore_umi                Use this flag if you do not want to pull UMIs and perform deduplication
-        --check_samp_by_samp        Use this flag if you want to calculate pairwise stats across samples and generate plots
+        --ignore_umi                Use this flag if you do not want to pull UMIs and perform deduplication (default: false)
+        --check_samp_by_samp        Use this flag if you want to calculate pairwise stats across samples and generate plots (default: false)
 
     Extra arguments:
         --h, --help                 Print help message
@@ -165,7 +165,7 @@ if (params.ignore_umi) {
 
     process bc_clip {
         publishDir "${params.outdir}/clip", overwrite: true
-        container 'library://tovar/general/mpra_utilscripts:20240619'
+        container 'library://tovar/general/mpra_utilscripts:20240715'
         cpus 16
         memory '80 GB'
         time '60m'
@@ -224,7 +224,7 @@ if (params.ignore_umi) {
 
     process prep_bc {
         publishDir "${params.outdir}/parsed", overwrite: true
-        container 'library://tovar/general/mpra_utilscripts:20240619'
+        container 'library://tovar/general/mpra_utilscripts:20240715'
         tag "$libname"
         cpus 10
         memory '50GB'
@@ -249,7 +249,7 @@ if (params.ignore_umi) {
 
     process starcode_bc {
         publishDir "${params.outdir}/bc", overwrite: true
-        container 'library://tovar/general/mpra_utilscripts:20240619'
+        container 'library://tovar/general/mpra_utilscripts:20240715'
         cpus 10
         memory { 30.GB + 30.GB * task.attempt }
         maxRetries 3
@@ -279,7 +279,7 @@ if (params.ignore_umi) {
 
     process read_stats_bc {
         publishDir "${params.outdir}/postprocess", overwrite: true
-        container 'library://tovar/general/mpra_utilscripts:20240619'
+        container 'library://tovar/general/mpra_utilscripts:20240715'
         cpus 1
         memory '20 GB'
         time '30m'
@@ -332,7 +332,7 @@ if (params.ignore_umi) {
 
     process bc_clip_umi {
         publishDir "${params.outdir}/clip", overwrite: true
-        container 'library://tovar/general/mpra_utilscripts:20240619'
+        container 'library://tovar/general/mpra_utilscripts:20240715'
         cpus 16
         memory '80 GB'
         time '60m'
@@ -391,7 +391,7 @@ if (params.ignore_umi) {
 
     process extract_umi {
         publishDir "${params.outdir}/umi", overwrite: true
-        container 'library://tovar/general/mpra_utilscripts:20240619'
+        container 'library://tovar/general/mpra_utilscripts:20240715'
         cpus 16
         memory { 60.GB + (30.GB * task.attempt) }
         time '5h'
@@ -424,7 +424,7 @@ if (params.ignore_umi) {
 
     process prep_umibc {
         publishDir "${params.outdir}/parsed", overwrite: true
-        container 'library://tovar/general/mpra_utilscripts:20240619'
+        container 'library://tovar/general/mpra_utilscripts:20240715'
         tag "$libname"
 
         input:
@@ -454,7 +454,7 @@ if (params.ignore_umi) {
 
     process starcode_umi {
         publishDir "${params.outdir}/parsed", overwrite: true
-        container 'library://tovar/general/mpra_utilscripts:20240619'
+        container 'library://tovar/general/mpra_utilscripts:20240715'
         tag "$libname"
         cpus 10
         memory { 40.GB + (40.GB * task.attempt) }
@@ -483,7 +483,7 @@ if (params.ignore_umi) {
 
     process starcode_umibc {
         publishDir "${params.outdir}/bc", overwrite: true
-        container 'library://tovar/general/mpra_utilscripts:20240619'
+        container 'library://tovar/general/mpra_utilscripts:20240715'
         tag "$libname"
         cpus 10
         memory { 40.GB + (40.GB * task.attempt) }
@@ -514,7 +514,7 @@ if (params.ignore_umi) {
 
     process read_stats_umibc {
         publishDir "${params.outdir}/postprocess", overwrite: true
-        container 'library://tovar/general/mpra_utilscripts:20240619'
+        container 'library://tovar/general/mpra_utilscripts:20240715'
         cpus 1
         memory '20GB'
         time '30m'
@@ -544,7 +544,7 @@ step 6/8: filter clustered barcodes
 
 process bc_stats {
     publishDir "${params.outdir}/postprocess", overwrite: true
-    container 'library://tovar/general/mpra_utilscripts:20240619'
+    container 'library://tovar/general/mpra_utilscripts:20240715'
     cpus 1
     memory '20GB'
     time '30m'
@@ -569,7 +569,7 @@ step 7/9: filter clustered barcodes
 
 process filter_bcgroups {
     publishDir "${params.outdir}/postprocess/filt_bc", overwrite: true
-    container 'library://tovar/general/mpra_utilscripts:20240619'
+    container 'library://tovar/general/mpra_utilscripts:20240715'
     cpus 4
     memory '24GB'
     tag "$libname"
@@ -595,7 +595,7 @@ step 8/10: make waterfall plots with clustered barcodes
 
 process waterfall_plot {
     publishDir "${params.outdir}/postprocess/plots", overwrite: true
-    container 'library://tovar/general/mpra_utilscripts:20240619'
+    container 'library://tovar/general/mpra_utilscripts:20240715'
     cpus 1
     memory '10GB'
     tag "$libname"
@@ -625,7 +625,7 @@ if (params.check_samp_by_samp) {
 
     process joint_mtx {
         publishDir "${params.outdir}/postprocess/joint_mtx", overwrite: true
-        container 'library://tovar/general/mpra_utilscripts:20240619'
+        container 'library://tovar/general/mpra_utilscripts:20240715'
         cpus 4
         memory { 20.GB + (20.GB * task.attempt) }
         maxRetries 3
@@ -660,7 +660,7 @@ if (params.check_samp_by_samp) {
 
     process sampbysamp_mtx {
         publishDir "${params.outdir}/postprocess/joint_mtx", overwrite: true
-        container 'library://tovar/general/mpra_utilscripts:20240619'
+        container 'library://tovar/general/mpra_utilscripts:20240715'
 
         input:
         path(sample_tab)
@@ -685,7 +685,7 @@ if (params.check_samp_by_samp) {
 
     process sampbysamp_plot {
         publishDir "${params.outdir}/postprocess/plots", overwrite: true
-        container 'library://tovar/general/mpra_utilscripts:20240619'
+        container 'library://tovar/general/mpra_utilscripts:20240715'
 
         input:
         path("${params.outdir}/postprocess/joint_mtx/sampbysamp.*")
