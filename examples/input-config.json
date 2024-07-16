@@ -1,0 +1,48 @@
+{
+    "libnames": {
+        "sample1_DNA": {
+            "umi_len": 13,
+            "fwd": {
+                "1": "/path/to/data-a/sample1_DNA.r1.fq.gz",
+                "2": "/path/to/data-b/sample1_DNA.r1.fq.gz"
+            },
+            "rev": {
+                "1": "/path/to/data-a/sample1_DNA.r2.fq.gz",
+                "2": "/path/to/data-b/sample1_DNA.r2.fq.gz"
+            }
+        },
+        "sample2_DNA": {
+            "umi_len": 13,
+            "fwd": {
+                "1": "/path/to/data-a/sample2_DNA.r1.fq.gz",
+                "2": "/path/to/data-b/sample2_DNA.r1.fq.gz"
+            },
+            "rev": {
+                "1": "/path/to/data-a/sample2_DNA.r2.fq.gz",
+                "2": "/path/to/data-b/sample2_DNA.r2.fq.gz"
+            }
+        },
+        "sample1_RNA": {
+            "umi_len": 15,
+            "fwd": {
+                "1": "/path/to/data-a/sample1_RNA.r1.fq.gz",
+                "2": "/path/to/data-b/sample1_RNA.r1.fq.gz"
+            },
+            "rev": {
+                "1": "/path/to/data-a/sample1_RNA.r2.fq.gz",
+                "2": "/path/to/data-b/sample1_RNA.r2.fq.gz"
+            }
+        },
+        "sample2_RNA": {
+            "umi_len": 15,
+            "fwd": {
+                "1": "/path/to/data-a/sample2_RNA.r1.fq.gz",
+                "2": "/path/to/data-b/sample2_RNA.r1.fq.gz"
+            },
+            "rev": {
+                "1": "/path/to/data-a/sample2_RNA.r2.fq.gz",
+                "2": "/path/to/data-b/sample2_RNA.r2.fq.gz"
+            }
+        }
+    }
+}
