@@ -27,7 +27,7 @@ def helpMsg () {
 
     Usage:
 
-    nextflow run bc_count.nf -params-file input.json
+    nextflow run -params-file input.json /path/to/bc_count.nf
 
     Recommended arguments:
         --outdir                    Output directory for results (default: bc_count)
