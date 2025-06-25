@@ -17,7 +17,7 @@ At present, it has only been tested on a SLURM-configured server (specifically G
 Make sure your sample names are in the format `SAMPLENAME_[RNA,gDNA,DNA,cDNA]`, e.g. `ATS0999_RNA` or `Sample8_gDNA`.
 
 1. Make your project work directory.
-2. Make symbolic links to your raw FASTQ files in a subdirectory, either manually or by using the example `make_symlink.sh` script to automatically make symlinks to your files (especially usefully when you have data across multiple sequencing runs). 
+2. Make symbolic links to your raw FASTQ files in a subdirectory. You can do this manually if you have just a single set of data; otherwise, use the example `make_symlink.sh` script to automatically make symlinks to your files if you have data from multiple sequencing runs.
 3. Generate your input configuration file, by running `bin/make_config.py`.
 4. Run the pipeline.
 
