@@ -21,4 +21,4 @@ Make sure your sample names are in the format `SAMPLENAME_[RNA,gDNA,DNA,cDNA]`, 
 3. Generate your input configuration file, by running `bin/make_config.py`.
 4. Run the pipeline.
 
-Example job submission scripts for steps 2-3 are available in `examples`.
+Example job submission scripts for steps 2-4 are available in `examples`.
