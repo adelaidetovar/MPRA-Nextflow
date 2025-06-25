@@ -2,12 +2,10 @@ import os
 import re
 import json
 import argparse
-from collections import defaultdict
 
 def list_of_strings(arg):
     return arg.split(',')
 
-# change if UMI lengths do not differ by sample type
 def get_umi_length(libname):
     umi_len_map = {
         "_RNA": 15,
@@ -27,43 +25,55 @@ def make_config(libnames, dirs, single_end=False):
 
     fq_files = []
     for dir in dirs:
-        fq_files.extend([os.path.join(dir, f) for f in os.listdir(dir) if f.endswith(".fq.gz")])
+        fq_files.extend([os.path.join(dir, f) for f in os.listdir(dir)
+                         if re.search(r"\.r[12]\.(fq|fastq)\.gz$", f)])
 
     for libname in libnames:
         umi_len = get_umi_length(libname)
         if not single_end and umi_len is None:
-            raise ValueError(f"Check naming convention for sample '{libname}.'")
+            raise ValueError(f"Check naming convention for sample '{libname}'")
 
         fwd_dict = {}
         rev_dict = {} if not single_end else None
 
-        matches = []
+        matched = []
         for fq in fq_files:
             fname = os.path.basename(fq)
-            if fname.startswith(libname) and re.search(r'_[A-Z]\.r1\.fq\.gz$', fname):
-                suffix = re.search(r'_([A-Z])\.r1\.fq\.gz$', fname).group(1)
+            ext = ".fq.gz" if ".fq.gz" in fname else ".fastq.gz"
+            rep_match = re.match(rf"^{re.escape(libname)}_([A-Z])\.r1\.(fq|fastq)\.gz$", fname)
+            if rep_match:
+                suffix = rep_match.group(1)
                 fwd = fq
-                rev = fq.replace(".r1.fq.gz", ".r2.fq.gz")
-                if not single_end and not os.path.exists(rev):
+                rev = fq.replace(".r1", ".r2") if not single_end else None
+                if rev and not os.path.exists(rev):
                     raise FileNotFoundError(f"Missing reverse read: {rev}")
-                matches.append((suffix, fwd, rev if not single_end else None))
+                matched.append((suffix, fwd, rev))
+            elif re.match(rf"^{re.escape(libname)}\.r1\.(fq|fastq)\.gz$", fname):
+                fwd = fq
+                rev = fq.replace(".r1", ".r2") if not single_end else None
+                if rev and not os.path.exists(rev):
+                    raise FileNotFoundError(f"Missing reverse read: {rev}")
+                matched.append(("1", fwd, rev))
 
-        matches.sort()
+        matched.sort()
 
-        for i, (suffix, fwd, rev) in enumerate(matches, start=1):
-            fwd_dict[str(i)] = fwd
+        for i, (rep_id, fwd, rev) in enumerate(matched, start=1):
+            key = str(i)
+            fwd_dict[key] = fwd
             if not single_end:
-                rev_dict[str(i)] = rev
+                rev_dict[key] = rev
 
-        entry = {
-            "fwd": fwd_dict
-        }
+        if not matched:
+            raise FileNotFoundError(f"No matching files found for libname '{libname}'")
 
         if not single_end:
-            entry["rev"] = rev_dict
-            entry["umi_len"] = umi_len
-
-        config["libnames"][libname] = entry
+            lib_entry = {"umi_len": umi_len,
+                        "fwd": fwd_dict,
+                        "rev": rev_dict}
+        else:
+            lib_entry = {"fwd": fwd_dict}
+        
+        config["libnames"][libname] = lib_entry
 
     return config
 
@@ -72,11 +82,11 @@ def main():
 
     opts.add_argument("--libnames", dest="libnames", type=list_of_strings, required=True)
     opts.add_argument("--dirs", dest="dirs", type=list_of_strings, required=True)
-    opts.add_argument("--no_umi", action="store_true", help="Use this flag if you're not using UMIs")
+    opts.add_argument("--ignore_umi", action="store_true", help="Use if not using UMIs (forward reads only)")
 
     args = opts.parse_args()
 
-    config = make_config(args.libnames, args.dirs, single_end=args.no_umi)
+    config = make_config(args.libnames, args.dirs, single_end=args.ignore_umi)
 
     with open("input-config.json", "w") as outfile:
         json.dump(config, outfile, indent=4)

@@ -11,6 +11,7 @@
 
 FQ_DIR="/path/to/in_fq/"
 
-LIBNAMES=$(ls "$FQ_DIR" | grep -E "\.r[12]\.fq\.gz$" | sed -E 's/(_[A-Za-z])\.r[12]\.fq\.gz$/\1/' | sort -u | tr '\n' ',' | sed 's/,$//')
+LIBNAMES=$(ls "$FQ_DIR" | grep -E "\.r[12]\.(fq|fastq)\.gz$" | \
+    sed -E 's/(_[A-Z])?\.r[12]\.(fq|fastq)\.gz$//' | sort -u | tr '\n' ',' | sed 's/,$//')
 
 python /path/to/bin/make_config.py --libnames "$LIBNAMES" --dir "$FQ_DIR"

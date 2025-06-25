@@ -190,7 +190,6 @@ process bc_clip {
         --maximum-length 20 \
         --discard-untrimmed \
         -q 10 \
-        --pair-filter=first \
         -o ${libname}.clip.r1.gz \
         ${concat_fq} \
         > ${libname}.clip.log
@@ -222,8 +221,8 @@ process bc_clip_umi {
         -g CCGGTACTGTTGGTAAAGAACCACCAGA...TCGGCNGCCC \
         -e 0.1 -O 25 \
         -j 16 \
-        --minimum-length 20 \
-        --maximum-length 20 \
+        --minimum-length 18 \
+        --maximum-length 22 \
         --discard-untrimmed \
         -q 10 \
         --pair-filter=first \
@@ -289,7 +288,7 @@ process prep_umibc {
     if [[ -s ${ libname }.umi.txt && -s ${ { libname } }.bc.txt ]]; then
         paste -d "" ${libname}.umi.txt ${libname}.bc.txt > ${libname}.umibc.txt
     else
-        echo "Double check your input files, which should have one UMI or BC per line." >&2
+        echo "One or both files empty." >&2
         exit 1
     fi
     """
@@ -320,7 +319,7 @@ process starcode_bc {
         -t 10 \
         --print-clusters \
         -d ${params.bc_dist} \
-        -i <( pigz -d -c -p 40 ${clip_out} | sed -ne '2~4p' ) \
+        -i <( pigz -d -c -p 16 ${clip_out} | sed -ne '2~4p' ) \
         -o ${libname}.bc_cluster.txt
     """
 }
@@ -329,7 +328,7 @@ process starcode_umi {
     publishDir "${params.outdir}/parsed", overwrite: true
     container 'library://tovar/general/mpra_utilscripts:20240716'
     tag "$libname"
-    cpus 10
+    cpus 16
     memory { 80.GB + (40.GB * task.attempt) }
     time '6h'
     errorStrategy 'retry'
@@ -348,8 +347,8 @@ process starcode_umi {
         --starcode-path /usr/local/bin/starcode \
         --umi-len ${umi_len} \
         --umi-d ${params.umi_dist} \
-        --umi-threads 10 \
-        --seq-threads 10 \
+        --umi-threads 16 \
+        --seq-threads 16 \
         ${umibc} > ${libname}.starumi
 
     if [ ! -s ${libname}.starumi ]; then
@@ -363,7 +362,7 @@ process starcode_umibc {
     publishDir "${params.outdir}/bc", overwrite: true, mode: "copy"
     container 'library://tovar/general/mpra_utilscripts:20240716'
     tag "$libname"
-    cpus 10
+    cpus 16
     memory { 80.GB + (25.GB * task.attempt) }
     time { 8.hours + (4.hours * task.attempt) }
     errorStrategy 'retry'
@@ -380,7 +379,7 @@ process starcode_umibc {
     """
     ${IONICE} cat ${libname}.starumi | awk '{print substr(\$1, ${umi_len}+1, ${params.bc_len})}' | \
     starcode \
-        -t 10 \
+        -t 16 \
         --print-clusters \
         -d ${params.bc_dist} \
         -i /dev/stdin \
@@ -410,7 +409,7 @@ process read_stats_bc {
     """
     read_stats \
         --in_clip ${params.outdir}/clip \
-        --in-bc ${params.outdir}/bc \
+        --in_clust ${params.outdir}/bc \
         --out_tab "read_stats.txt"
     """
 }
@@ -620,10 +619,9 @@ workflow {
         libnames.collectMany { libname ->
             fwd_files = libname_to_fwd(libname)
 
-            [libname, fwd_files]
+            [[libname, fwd_files]]
         }
     )
-
         clip_in = cat_fq(fq_in)
     } else {
         fq_in = Channel.from(
@@ -635,7 +633,6 @@ workflow {
             [[libname, umi_len, fwd_files, rev_files]]
         }
     )
-
         clip_in = cat_fq_umi(fq_in)
     }
 
