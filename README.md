@@ -7,10 +7,12 @@
     git clone https://github.com/adelaidetovar/MPRA-Nextflow.git
 
 ### Install dependencies
-All required software is provided by a Singularity container within the pipeline. It is recommended to install Nextflow (version 22.1 or greater) and, if applicable, Singularity, within a new conda environment.
+All required software is provided by a Singularity container within the pipeline. It is recommended to install Nextflow (version 23.1 or greater) and, if applicable, Singularity, within a new conda environment.
 
 ## Running the pipeline
-This pipeline takes raw FASTQ files containing reads from sequencing runs that use custom or conventional Truseq sequencing primers. It can concatenate files from separate runs or across separate lanes. At present, it has only been tested on a SLURM-configured server, which is reflected in the `nextflow.config` file. In the `.nf` files, adjust `queue` parameter to reflect the names of your server's partitions.
+This pipeline takes raw FASTQ files containing reads from sequencing runs that use custom or conventional Truseq sequencing primers. It can concatenate files from separate runs or across separate lanes.
+
+At present, it has only been tested on a SLURM-configured server (specifically Greatlakes at the University of Michigan), which is reflected in the `nextflow.config` file. If running on any other server, make sure to update this file, all job submission scripts, and the`.nf` files to match your server. Specifically, you'll need to account names, paths to directories, and in the `.nf` files, adjust `queue` parameter to reflect the names of your server's partitions.
 
 Make sure your sample names are in the format `SAMPLENAME_[RNA,gDNA,DNA,cDNA]`, e.g. `ATS0999_RNA` or `Sample8_gDNA`.
 
