@@ -11,7 +11,7 @@ nextflow.enable.dsl = 2
 #### Documentation
 https://github.com/adelaidetovar/MPRA-NextFlow
 #### Last updated
-2024-09-11
+2025-02-19
 #### Authors
 Jacob Kitzman <kitzmanj@umich.edu>
 Adelaide Tovar <tovar@umich.edu>
@@ -49,6 +49,35 @@ if (params.containsKey('h') || params.containsKey('help')){
     exit 0
 }
 
+/*
+step 1: if necessary, concatenate fastq files from multiple lanes
+*/
+
+process cat_fq {
+    publishDir "${params.outdir}/cat_fq", overwrite: true
+    cpus 2
+    memory '8 GB'
+    time '25m'
+    queue 'standard'
+    tag "$libname"
+
+    input:
+    tuple val(libname), path(fwd_files), path(rev_files)
+
+    output:
+    tuple val(libname), path("${libname}.cat.r*.gz"), emit: concat_fq
+
+    script:
+    """
+    cat ${fwd_files.join(' ')} > ${libname}.cat.r1.gz
+    cat ${rev_files.join(' ')} > ${libname}.cat.r2.gz
+    """
+}
+
+/*
+step 2: first adapter trim
+*/
+
 process first_clip {
 
     publishDir "${params.outdir}/clip", overwrite: true
@@ -59,10 +88,11 @@ process first_clip {
     tag "$libname"
 
     input:
-    tuple val(libname), path(fwd_fq), path(rev_fq)
+    tuple val(libname), path(concat_fq)
 
     output:
-    tuple val(libname), path("${libname}.clip.r*.gz"), path("${libname}.clip.log"), emit: clip_out
+    tuple val(libname), path("${libname}.clip.r*.gz"), emit: clip_out
+    path("${libname}.clip.log"), emit: clip_log
 
     script:
     """
@@ -75,16 +105,21 @@ process first_clip {
         -j 10 \
         --minimum-length 10 \
         -q 16 \
-        -o ${libname}.clip.r2.gz \
-        -p ${libname}.clip.r1.gz \
-        ${rev_fq} ${fwd_fq}\
+        -o ${libname}.clip.r1.gz \
+        -p ${libname}.clip.r2.gz \
+        ${params.outdir}/cat_fq/${libname}.cat.r1.gz \
+        ${params.outdir}/cat_fq/${libname}.cat.r2.gz \
             > ${libname}.clip.log
     """
 }
 
+/*
+step 3: extract barcode seq and move to file used as input for starcode
+*/
+
 process extract_bc {
     
-    publishDir "${params.results}/bc", mode: 'rellink'
+    publishDir "${params.outdir}/bc", mode: 'rellink'
     cpus 8
     memory '10 GB'
     time '12h'
@@ -122,7 +157,8 @@ process second_clip {
     tuple val(libname), path(extract_out)
 
     output:
-    tuple val(libname), path("${libname}.clip2.r*.gz"), path("${libname}.clip2.log"), emit: clip2_out
+    tuple val(libname), path("${libname}.clip2.r*.gz"), emit: clip2_out
+    tuple val(libname), path("${libname}.clip2.log"), emit: clip2_log
 
     script:
     """
@@ -137,14 +173,15 @@ process second_clip {
         -q 10 \
         -o ${libname}.clip2.r1.gz \
         -p ${libname}.clip2.r2.gz \
-        ${libname}.bc.r1.gz ${libname}.bc.r2.gz \
+        ${params.outdir}/bc/${libname}.bc.r1.gz \
+        ${params.outdir}/bc/${libname}.bc.r2.gz \
             > ${libname}.clip2.log
     """
 }
 
 process bcs_to_fq {
     
-    publishDir "${params.results}/clip2", mode: 'rellink'
+    publishDir "${params.outdir}/clip2", mode: 'rellink'
     container 'library://'
     errorStrategy 'retry'
     maxRetries 1
@@ -169,7 +206,7 @@ process bcs_to_fq {
 
 process fix_header {
     
-    publishDir "${params.results}/clip2", mode: 'rellink'
+    publishDir "${params.outdir}/clip2", mode: 'rellink'
     container 'library://'
     errorStrategy 'retry'
     maxRetries 1
@@ -192,7 +229,7 @@ process fix_header {
 
 process pre_starcode {
     
-    publishDir "${params.results}/pre_starcode", mode: 'rellink'
+    publishDir "${params.outdir}/pre_starcode", mode: 'rellink'
     container 'library://'
     errorStrategy 'retry'
     maxRetries 1
@@ -214,7 +251,7 @@ process pre_starcode {
 
 process pre_histo {
     
-    publishDir "${params.results}/pre_starcode", mode: 'rellink'
+    publishDir "${params.outdir}/pre_starcode", mode: 'rellink'
     container 'library://'
     errorStrategy 'retry'
     maxRetries 1
@@ -239,6 +276,8 @@ process pre_histo {
 }
 
 workflow {
+
+    
     libraries = params.libraries.keySet()
     subasm_fq1_fq2 = []
 

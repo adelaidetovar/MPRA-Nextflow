@@ -10,6 +10,6 @@
 #SBATCH --mail-user user@email.com
 
 module load openjdk
-module load singularity/3.11.1
+module load singularity
 export WORKDIR=/path/to/proj/
 exec nextflow run -resume -params-file $WORKDIR/input-config.json --outdir $WORKDIR/bc_count --check_samp_by_samp /home/user/github/MPRA-Nextflow/bc_count.nf

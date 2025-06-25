@@ -11,7 +11,7 @@ nextflow.enable.dsl = 2
 #### Documentation
 https://github.com/adelaidetovar/MPRA-NextFlow
 #### Last updated
-2024-09-05
+2025-06-24
 #### Authors
 Jacob Kitzman <kitzmanj@umich.edu>
 Adelaide Tovar <tovar@umich.edu>
@@ -31,14 +31,13 @@ def helpMsg () {
 
     Recommended arguments:
         --outdir                    Output directory for results (default: bc_count)
-        --single_end                Use this flag if you have single-end reads (default: false)
 
     Other options:
         --umi-len                   UMI length (default: 15)
         --bc-len                    MPRA barcode length (default: 20)
-        --umi-dist                  Levenshtein distance used for clustering UMIs (default: 2)
-        --bc-dist                   Levenshtein distance used for clustering (deduplicated) barcodes (default: 2)
-        --ignore-umi                Use this flag if you do not want to pull UMIs and perform deduplication (default: false)
+        --umi-dist                  Levenshtein distance used for clustering UMIs (default: 1)
+        --bc-dist                   Levenshtein distance used for clustering (deduplicated) barcodes (default: 1)
+        --ignore-umi                Use this flag if you do not want to pull UMIs and perform deduplication (or have single-end data) (default: false)
         --checksampbysamp           Use this flag if you want to calculate pairwise stats across samples and generate plots (default: false)
 
     Extra arguments:
@@ -78,21 +77,14 @@ if (params.containsKey('bc-len')) {
 if (params.containsKey('umi-dist')) {
     params.umi_dist = params['umi-dist']
 } else {
-    params.umi_dist = 2
+    params.umi_dist = 1
 }
 
 // set bc levenshtein distance for starcode
 if (params.containsKey('bc-dist')) {
     params.bc_dist = params['bc-dist']
 } else {
-    params.bc_dist = 2
-}
-
-// single end or paired end reads
-if (params.containsKey('single-end')) {
-    params.single_end = true
-} else {
-    params.single_end = false
+    params.bc_dist = 1
 }
 
 // ignore umi for deduplication
@@ -128,30 +120,27 @@ step 1: if necessary, concatenate fastq files from multiple lanes
 
 process cat_fq {
     publishDir "${params.outdir}/cat_fq", overwrite: true
-    cpus 2
-    memory '4 GB'
-    time '15m'
+    memory '8 GB'
+    time '25m'
     queue 'standard'
     tag "$libname"
 
     input:
-    tuple val(libname), path(fwd_files), path(rev_files)
+    tuple val(libname), path(fwd_files)
 
     output:
-    tuple val(libname), path("${libname}.cat.r*.gz"), emit: concat_fq
+    tuple val(libname), path("${libname}.cat.r1.gz"), emit: concat_fq
 
     script:
     """
     cat ${fwd_files.join(' ')} > ${libname}.cat.r1.gz
-    cat ${rev_files.join(' ')} > ${libname}.cat.r2.gz
     """
 }
 
 process cat_fq_umi {
     publishDir "${params.outdir}/cat_fq", overwrite: true
-    cpus 2
-    memory '4 GB'
-    time '15m'
+    memory '8 GB'
+    time '30m'
     queue 'standard'
     tag "$libname"
 
@@ -182,10 +171,10 @@ process bc_clip {
     tag "$libname"
 
     input:
-    tuple val(libname), val(umi_len), path(concat_fq)
+    tuple val(libname), path(concat_fq)
 
     output:
-    tuple val(libname), path("${libname}.clip.r*.gz"), emit: clip_out
+    tuple val(libname), path("${libname}.clip.r1.gz"), emit: clip_out
     path("${libname}.clip.log"), emit: clip_log
     
     script:
@@ -196,16 +185,14 @@ process bc_clip {
         -g CCGGTACTGTTGGTAAAGAACCACCAGA...TCGGCNGCCC \
         -a TCGGCGGCCCGCCACCATGG \
         -e 0.1 -O 25 \
-        -j 8 \
-        --minimum-length 18 \
-        --maximum-length 22 \
+        -j 16 \
+        --minimum-length 20 \
+        --maximum-length 20 \
         --discard-untrimmed \
         -q 10 \
         --pair-filter=first \
         -o ${libname}.clip.r1.gz \
-        -p ${libname}.clip.r2.gz \
-        ${params.outdir}/cat_fq/${libname}.cat.r1.gz \
-        ${params.outdir}/cat_fq/${libname}.cat.r2.gz \
+        ${concat_fq} \
         > ${libname}.clip.log
     """
 }
@@ -234,9 +221,9 @@ process bc_clip_umi {
         -g CCGGTACTGTTGGTAAAGAACGGAAGA...TCGGCNGCCC \
         -g CCGGTACTGTTGGTAAAGAACCACCAGA...TCGGCNGCCC \
         -e 0.1 -O 25 \
-        -j 8 \
-        --minimum-length 18 \
-        --maximum-length 22 \
+        -j 16 \
+        --minimum-length 20 \
+        --maximum-length 20 \
         --discard-untrimmed \
         -q 10 \
         --pair-filter=first \
@@ -252,31 +239,9 @@ process bc_clip_umi {
 step 3: extract barcode seq and move to file used as input for starcode
 */
 
-process prep_bc {
-    publishDir "${params.outdir}/parsed", overwrite: true
-    container 'library://tovar/general/mpra_utilscripts:20240716'
-    tag "$libname"
-    cpus 10
-    memory '50GB'
-    time '1h'
-
-    input:
-    tuple val(libname), path(clip_out)
-
-    output:
-    tuple val(libname), path("${libname}.bc.txt"), emit: sepbc
-
-    script:
-    """
-    seqtk seq -a ${libname}.clip.r1.gz | \
-        tee >(awk 'NR % 2 == 0' > ${libname}.bc.txt)
-    """
-}
-
 process extract_umi {
     publishDir "${params.outdir}/umi", overwrite: true
     container 'library://tovar/general/mpra_utilscripts:20240716'
-    cpus 16
     memory { 60.GB + (30.GB * task.attempt) }
     time { 8.hours + (4.hours * task.attempt) }
     tag "$libname"
@@ -324,7 +289,7 @@ process prep_umibc {
     if [[ -s ${ libname }.umi.txt && -s ${ { libname } }.bc.txt ]]; then
         paste -d "" ${libname}.umi.txt ${libname}.bc.txt > ${libname}.umibc.txt
     else
-        echo "One or both files empty." >&2
+        echo "Double check your input files, which should have one UMI or BC per line." >&2
         exit 1
     fi
     """
@@ -344,19 +309,18 @@ process starcode_bc {
     tag "$libname"
 
     input:
-    tuple val(libname), path(sepbc)
+    tuple val(libname), path(clip_out)
 
     output:
     tuple val(libname), path("${libname}.bc_cluster.txt"), emit: bc_cluster
 
     script:
     """
-    ${IONICE} cat ${sepbc} | awk '{print substr(\$1, 1,${params.bc_len})}' | \
-    starcode \
+    ${IONICE} starcode \
         -t 10 \
         --print-clusters \
         -d ${params.bc_dist} \
-        -i /dev/stdin \
+        -i <( pigz -d -c -p 40 ${clip_out} | sed -ne '2~4p' ) \
         -o ${libname}.bc_cluster.txt
     """
 }
@@ -367,7 +331,7 @@ process starcode_umi {
     tag "$libname"
     cpus 10
     memory { 80.GB + (40.GB * task.attempt) }
-    time '12h'
+    time '6h'
     errorStrategy 'retry'
     maxRetries 3
     queue { task.attempt > 2 ? 'largemem' : 'standard' }
@@ -384,6 +348,8 @@ process starcode_umi {
         --starcode-path /usr/local/bin/starcode \
         --umi-len ${umi_len} \
         --umi-d ${params.umi_dist} \
+        --umi-threads 10 \
+        --seq-threads 10 \
         ${umibc} > ${libname}.starumi
 
     if [ ! -s ${libname}.starumi ]; then
@@ -429,7 +395,6 @@ step 5: calculate read statistics across filtering and clustering steps
 process read_stats_bc {
     publishDir "${params.outdir}/postprocess", overwrite: true, mode: "copy"
     container 'library://tovar/general/mpra_utilscripts:20240716'
-    cpus 1
     memory '20 GB'
     time '30m'
 
@@ -453,7 +418,6 @@ process read_stats_bc {
 process read_stats_umibc {
     publishDir "${params.outdir}/postprocess", overwrite: true, mode: "copy"
     container 'library://tovar/general/mpra_utilscripts:20240716'
-    cpus 1
     memory '20GB'
     time '30m'
 
@@ -485,7 +449,6 @@ step 6: barcode stats
 process bc_stats {
     publishDir "${params.outdir}/postprocess", overwrite: true, mode: "copy"
     container 'library://tovar/general/mpra_utilscripts:20240716'
-    cpus 1
     memory '20GB'
     time '30m'
 
@@ -511,7 +474,6 @@ step 7: filter clustered barcodes
 process filter_bcgroups {
     publishDir "${params.outdir}/postprocess/filt_bc", overwrite: true, mode: "copy"
     container 'library://tovar/general/mpra_utilscripts:20240716'
-    cpus 4
     memory '24GB'
     tag "$libname"
 
@@ -538,8 +500,7 @@ step 8: make waterfall plots with clustered barcodes
 process waterfall_plot {
     publishDir "${params.outdir}/postprocess/plots", overwrite: true, mode: "copy"
     container 'library://tovar/general/mpra_utilscripts:20240716'
-    cpus 2
-    memory '24GB'
+    memory '48GB'
     tag "$libname"
 
     input:
@@ -566,10 +527,9 @@ step 9: combine clustered barcodes and counts across all samples into a joint ma
 process joint_mtx {
     publishDir "${params.outdir}/postprocess/joint_mtx", overwrite: true, mode: "copy"
     container 'library://tovar/general/mpra_utilscripts:20240716'
-    cpus 4
-    memory { 20.GB + (20.GB * task.attempt) }
+    memory { 40.GB + (40.GB * task.attempt) }
     maxRetries 3
-    time '2h'
+    time '3h'
     errorStrategy 'retry'
 
     input:
@@ -603,10 +563,9 @@ step 10: matrix math to generate barcode statistics across samples
 process sampbysamp_mtx {
     publishDir "${params.outdir}/postprocess/joint_mtx", overwrite: true, mode: "copy"
     container 'library://tovar/general/mpra_utilscripts:20240716'
-    cpus 4
-    memory { 20.GB + (20.GB * task.attempt) }
+    memory { 20.GB + (30.GB * task.attempt) }
     maxRetries 3
-    time '6h'
+    time '8h'
     errorStrategy 'retry'
 
     input:
@@ -633,7 +592,6 @@ step 11: plot stats generated in step 10
 process sampbysamp_plot {
     publishDir "${params.outdir}/postprocess/plots", overwrite: true, mode: "copy"
     container 'library://tovar/general/mpra_utilscripts:20240716'
-    cpus 4
     memory { 20.GB + (20.GB * task.attempt) }
     maxRetries 3
     time '6h'
@@ -661,9 +619,8 @@ workflow {
         fq_in = Channel.from(
         libnames.collectMany { libname ->
             fwd_files = libname_to_fwd(libname)
-            rev_files = libname_to_rev(libname)
 
-            [libname, fwd_files, rev_files]
+            [libname, fwd_files]
         }
     )
 
@@ -684,7 +641,7 @@ workflow {
 
     if (params.ignore_umi) {
         (clip_out, clip_log) = bc_clip(clip_in)
-        starcode_out = prep_bc(clip_out) | starcode_bc
+        starcode_out = starcode_bc(clip_out)
         clip_ch = clip_log.collect()
         bc_out = starcode_out.collect()
         read_stats_bc(clip_log, bc_out, params.outdir)

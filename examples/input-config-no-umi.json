@@ -1,0 +1,28 @@
+{
+    "libnames": {
+        "sample1_DNA": {
+            "fwd": {
+                "1": "/path/to/data-a/sample1_DNA.r1.fq.gz",
+                "2": "/path/to/data-b/sample1_DNA.r1.fq.gz"
+            }
+        },
+        "sample2_DNA": {
+            "fwd": {
+                "1": "/path/to/data-a/sample2_DNA.r1.fq.gz",
+                "2": "/path/to/data-b/sample2_DNA.r1.fq.gz"
+            }
+        },
+        "sample1_RNA": {
+            "fwd": {
+                "1": "/path/to/data-a/sample1_RNA.r1.fq.gz",
+                "2": "/path/to/data-b/sample1_RNA.r1.fq.gz"
+            }
+        },
+        "sample2_RNA": {
+            "fwd": {
+                "1": "/path/to/data-a/sample2_RNA.r1.fq.gz",
+                "2": "/path/to/data-b/sample2_RNA.r1.fq.gz"
+            }
+        }
+    }
+}

@@ -9,4 +9,8 @@
 #SBATCH --job-name=nf_mpra
 #SBATCH --mail-user user@email.com
 
-python make_config.py --libnames sample1_DNA,sample2_DNA,sample1_RNA,sample2_RNA --dirs /path/to/data-a/,/path/to/data-b/
+FQ_DIR="/path/to/in_fq/"
+
+LIBNAMES=$(ls "$FQ_DIR" | grep -E "\.r[12]\.fq\.gz$" | sed -E 's/(_[A-Za-z])\.r[12]\.fq\.gz$/\1/' | sort -u | tr '\n' ',' | sed 's/,$//')
+
+python /path/to/bin/make_config.py --libnames "$LIBNAMES" --dir "$FQ_DIR"
