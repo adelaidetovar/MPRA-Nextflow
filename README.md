@@ -10,7 +10,7 @@
 All required software is provided by a Singularity container within the pipeline. It is recommended to install Nextflow (version 23.1 or greater) and, if applicable, Singularity, within a new conda environment.
 
 ### Get a cloud.sylabs.io access token to access Singularity image
-If you don't already have a working sylabs.io access token, create or login to your [https://cloud.sylabs.io/dashboard cloud.sylabs.io] account. In your dashboard under 'Access Tokens' create a new token. In your shell, type `singularity remote login` and paste the access token.
+If you don't already have a working sylabs.io access token, create or login to your [cloud.sylabs.io https://cloud.sylabs.io/dashboard] account. In your dashboard under 'Access Tokens' create a new token. In your shell, type `singularity remote login` and paste the access token.
 
 ## Running the pipeline
 This pipeline takes raw FASTQ files containing reads from sequencing runs that use custom or conventional Truseq sequencing primers. It can concatenate files from separate runs or across separate lanes.
