@@ -11,7 +11,7 @@ nextflow.enable.dsl = 2
 #### Documentation
 https://github.com/adelaidetovar/MPRA-NextFlow
 #### Last updated
-2025-06-24
+2025-07-16
 #### Authors
 Jacob Kitzman <kitzmanj@umich.edu>
 Adelaide Tovar <tovar@umich.edu>
@@ -145,7 +145,7 @@ process cat_fq_umi {
     tag "$libname"
 
     input:
-    tuple val(libname), val(umi_len), path(fwd_files), path(rev_files)
+    tuple val(libname), val(umi_len), path(fwd_files)
 
     output:
     tuple val(libname), val(umi_len), path("${libname}.cat.r*.gz"), emit: concat_fq
@@ -153,12 +153,43 @@ process cat_fq_umi {
     script:
     """
     cat ${fwd_files.join(' ')} > ${libname}.cat.r1.gz
-    cat ${rev_files.join(' ')} > ${libname}.cat.r2.gz
     """
 }
 
 /*
-step 2: filter for sequences containing expected adapters
+step 2: for UMI samples - extract UMI
+*/
+
+process extract_umi {
+    publishDir "${params.outdir}/umi", overwrite: true
+    container 'library://tovar/general/mpra_utilscripts:20240716'
+    memory { 60.GB + (30.GB * task.attempt) }
+    time { 8.hours + (4.hours * task.attempt) }
+    tag "$libname"
+    errorStrategy 'retry'
+    maxRetries 3
+    queue 'standard'
+
+    input:
+    tuple val(libname), val(umi_len), path(concat_fq)
+
+    output:
+    tuple val(libname), val(umi_len), path("${libname}.umi.r1.gz"), emit: umi_out
+    path("${libname}.umi.log"), emit: umi_log
+
+    script:
+    """
+    ${IONICE} umi_tools extract \
+        --stdin ${libname}.cat.r1.gz \
+        --stdout ${libname}.umi.r1.gz \
+        --extract-method regex \
+        --bc-pattern='(.{${params.bc_len}})TCGGCGGCCCGCCACCATGGTGAGCAAGGGCGA(?P<umi_1>.{${umi_len}})(?P<discard_1>AGATCGG|AGATCGGAA){s<=2}' \
+        -L /dev/stdout | tee ${libname}.umi.log
+    """
+}
+
+/*
+step 2/3: filter for sequences containing expected adapters
 */
 
 process bc_clip {
@@ -180,9 +211,6 @@ process bc_clip {
     script:
     """
     ${IONICE} cutadapt \
-        -g CCGGTACTGTTGGTAAAGAACCTCTAGA...TCGGCNGCCC \
-        -g CCGGTACTGTTGGTAAAGAACGGAAGA...TCGGCNGCCC \
-        -g CCGGTACTGTTGGTAAAGAACCACCAGA...TCGGCNGCCC \
         -a TCGGCGGCCCGCCACCATGG \
         -e 0.1 -O 25 \
         -j 16 \
@@ -191,7 +219,7 @@ process bc_clip {
         --discard-untrimmed \
         -q 10 \
         -o ${libname}.clip.r1.gz \
-        ${concat_fq} \
+        ${params.outdir}/cat_fq/${libname}.cat.r1.gz \
         > ${libname}.clip.log
     """
 }
@@ -206,7 +234,7 @@ process bc_clip_umi {
     tag "$libname"
 
     input:
-    tuple val(libname), val(umi_len), path(concat_fq)
+    tuple val(libname), val(umi_len), path(umi_out)
 
     output:
     tuple val(libname), val(umi_len), path("${libname}.clip.r*.gz"), emit: clip_out
@@ -216,57 +244,21 @@ process bc_clip_umi {
     """
     ${IONICE} cutadapt \
         -a TCGGCGGCCCGCCACCATGG \
-        -g CCGGTACTGTTGGTAAAGAACCTCTAGA...TCGGCNGCCC \
-        -g CCGGTACTGTTGGTAAAGAACGGAAGA...TCGGCNGCCC \
-        -g CCGGTACTGTTGGTAAAGAACCACCAGA...TCGGCNGCCC \
         -e 0.1 -O 25 \
         -j 16 \
         --minimum-length 18 \
         --maximum-length 22 \
         --discard-untrimmed \
         -q 10 \
-        --pair-filter=first \
         -o ${libname}.clip.r1.gz \
-        -p ${libname}.clip.r2.gz \
-        ${params.outdir}/cat_fq/${libname}.cat.r1.gz \
-        ${params.outdir}/cat_fq/${libname}.cat.r2.gz \
+        ${params.outdir}/umi/${libname}.umi.r1.gz \
         > ${libname}.clip.log
         """
 }
 
 /*
-step 3: extract barcode seq and move to file used as input for starcode
+step 3/4: extract barcode seq and move to file used as input for starcode
 */
-
-process extract_umi {
-    publishDir "${params.outdir}/umi", overwrite: true
-    container 'library://tovar/general/mpra_utilscripts:20240716'
-    memory { 60.GB + (30.GB * task.attempt) }
-    time { 8.hours + (4.hours * task.attempt) }
-    tag "$libname"
-    errorStrategy 'retry'
-    maxRetries 3
-    queue 'standard'
-
-    input:
-    tuple val(libname), val(umi_len), path(clip_out)
-
-    output:
-    tuple val(libname), val(umi_len), path("${libname}.umi.r1.gz"), emit: fq_fwd_umi
-    path("${libname}.umi.log"), emit: umi_log
-
-    script:
-    """
-    ${IONICE} umi_tools extract \
-        --stdin ${libname}.clip.r2.gz \
-        --stdout ${libname}.umi.r2.gz \
-        --extract-method regex \
-        --bc-pattern='(?P<umi_1>.{${umi_len}})(?P<discard_1>GCTCCTCGCCCTTGCTCA|TCGCCCTTGCTCACCATG){s<=2}' \
-        --read2-in ${libname}.clip.r1.gz \
-        --read2-out=${libname}.umi.r1.gz \
-        -L /dev/stdout | tee ${libname}.umi.log
-    """
-}
 
 process prep_umibc {
     publishDir "${params.outdir}/parsed", overwrite: true
@@ -274,7 +266,7 @@ process prep_umibc {
     tag "$libname"
 
     input:
-    tuple val(libname), val(umi_len), path(fq_fwd_umi)
+    tuple val(libname), val(umi_len), path(clip_out)
 
     output:
     tuple val(libname), val(umi_len), path("${libname}.umibc.txt"), emit: umibc
@@ -295,7 +287,7 @@ process prep_umibc {
 }
 
 /*
-step 4: cluster barcodes using starcode
+step 4/5: cluster barcodes using starcode
 */
 
 process starcode_bc {
@@ -388,7 +380,7 @@ process starcode_umibc {
 }
 
 /*
-step 5: calculate read statistics across filtering and clustering steps
+step 5/6: calculate read statistics across filtering and clustering steps
 */
 
 process read_stats_bc {
@@ -442,7 +434,7 @@ process read_stats_umibc {
 }
 
 /*
-step 6: barcode stats
+step 6/7: barcode stats
 */
 
 process bc_stats {
@@ -467,7 +459,7 @@ process bc_stats {
 }
 
 /*
-step 7: filter clustered barcodes
+step 7/8: filter clustered barcodes
 */
 
 process filter_bcgroups {
@@ -493,7 +485,7 @@ process filter_bcgroups {
 }
 
 /*
-step 8: make waterfall plots with clustered barcodes
+step 8/9: make waterfall plots with clustered barcodes
 */
 
 process waterfall_plot {
@@ -520,7 +512,7 @@ process waterfall_plot {
 }
 
 /*
-step 9: combine clustered barcodes and counts across all samples into a joint matrix
+step 9/10: combine clustered barcodes and counts across all samples into a joint matrix
 */
 
 process joint_mtx {
@@ -556,7 +548,7 @@ process joint_mtx {
 }
 
 /*
-step 10: matrix math to generate barcode statistics across samples
+step 10/11: matrix math to generate barcode statistics across samples
 */
 
 process sampbysamp_mtx {
@@ -585,7 +577,7 @@ process sampbysamp_mtx {
 }
 
 /*
-step 11: plot stats generated in step 10
+step 11/12: plot stats generated in step 10
 */
 
 process sampbysamp_plot {
@@ -627,13 +619,12 @@ workflow {
         fq_in = Channel.from(
         libnames.collectMany { libname ->
             fwd_files = libname_to_fwd(libname)
-            rev_files = libname_to_rev(libname)
             umi_len = libname_to_umi_len(libname)
 
-            [[libname, umi_len, fwd_files, rev_files]]
+            [[libname, umi_len, fwd_files]]
         }
     )
-        clip_in = cat_fq_umi(fq_in)
+        umi_in = cat_fq_umi(fq_in)
     }
 
     if (params.ignore_umi) {
@@ -643,9 +634,9 @@ workflow {
         bc_out = starcode_out.collect()
         read_stats_bc(clip_log, bc_out, params.outdir)
     } else {
-        (clip_out, clip_log) = bc_clip_umi(clip_in)
-        (fq_fwd_umi, umi_log) = extract_umi(clip_out)
-        starcode_out = prep_umibc(fq_fwd_umi) | starcode_umi | starcode_umibc
+        (umi_out, umi_log) = extract_umi(umi_in)
+        (clip_out, clip_log) = bc_clip_umi(umi_out)
+        starcode_out = prep_umibc(clip_out) | starcode_umi | starcode_umibc
         clip_ch = clip_log.collect()
         umi_ch = umi_log.collect()
         parsed_out = prep_umibc.out.umibc.collect()

@@ -18,7 +18,7 @@ def get_umi_length(libname):
             return length
     return None
 
-def make_config(libnames, dirs, single_end=False):
+def make_config(libnames, dirs, single_end=False, ignore_umi=False):
     config = {
         "libnames": {}
     }
@@ -29,8 +29,8 @@ def make_config(libnames, dirs, single_end=False):
                          if re.search(r"\.r[12]\.(fq|fastq)\.gz$", f)])
 
     for libname in libnames:
-        umi_len = get_umi_length(libname)
-        if not single_end and umi_len is None:
+        umi_len = get_umi_length(libname) if not ignore_umi else None
+        if not ignore_umi and umi_len is None:
             raise ValueError(f"Check naming convention for sample '{libname}'")
 
         fwd_dict = {}
@@ -66,12 +66,11 @@ def make_config(libnames, dirs, single_end=False):
         if not matched:
             raise FileNotFoundError(f"No matching files found for libname '{libname}'")
 
+        lib_entry = {"fwd": fwd_dict}
+        if not ignore_umi:
+            lib_entry["umi_len"] = umi_len
         if not single_end:
-            lib_entry = {"umi_len": umi_len,
-                        "fwd": fwd_dict,
-                        "rev": rev_dict}
-        else:
-            lib_entry = {"fwd": fwd_dict}
+            lib_entry["rev"] = rev_dict
         
         config["libnames"][libname] = lib_entry
 
@@ -82,11 +81,12 @@ def main():
 
     opts.add_argument("--libnames", dest="libnames", type=list_of_strings, required=True)
     opts.add_argument("--dirs", dest="dirs", type=list_of_strings, required=True)
-    opts.add_argument("--ignore_umi", action="store_true", help="Use if not using UMIs (forward reads only)")
+    opts.add_argument("--single_end", action="store_true", help="Use for single-end reads")
+    opts.add_argument("--ignore_umi", action="store_true", help="Use to skip UMI extraction")
 
     args = opts.parse_args()
 
-    config = make_config(args.libnames, args.dirs, single_end=args.ignore_umi)
+    config = make_config(args.libnames, args.dirs, single_end=args.single_end, ignore_umi=args.ignore_umi)
 
     with open("input-config.json", "w") as outfile:
         json.dump(config, outfile, indent=4)
