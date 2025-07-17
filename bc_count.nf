@@ -148,7 +148,7 @@ process cat_fq_umi {
     tuple val(libname), val(umi_len), path(fwd_files)
 
     output:
-    tuple val(libname), val(umi_len), path("${libname}.cat.r*.gz"), emit: concat_fq
+    tuple val(libname), val(umi_len), path("${libname}.cat.r1.gz"), emit: concat_fq
 
     script:
     """
@@ -237,7 +237,7 @@ process bc_clip_umi {
     tuple val(libname), val(umi_len), path(umi_out)
 
     output:
-    tuple val(libname), val(umi_len), path("${libname}.clip.r*.gz"), emit: clip_out
+    tuple val(libname), val(umi_len), path("${libname}.clip.r1.gz"), emit: clip_out
     path("${libname}.clip.log"), emit: clip_log
 
     script:
@@ -273,11 +273,11 @@ process prep_umibc {
 
     script:
     """
-    seqtk seq -a ${fq_fwd_umi} | tee \
-        >(awk 'NR % 2 == 1' | grep -Po '(?<=_)[ATGCN]*' > ${libname}.umi.txt) \
+    seqtk seq -a ${clip_out} | tee \\
+        >(awk 'NR % 2 == 1' | grep -Po '(?<=_)[ATGCN]* ' | awk '{\$1=\$1;print}' > ${libname}.umi.txt) \
         >(awk 'NR % 2 == 0' > ${libname}.bc.txt)
 
-    if [[ -s ${ libname }.umi.txt && -s ${ { libname } }.bc.txt ]]; then
+    if [[ -s ${libname}.umi.txt && -s ${libname}.bc.txt ]]; then
         paste -d "" ${libname}.umi.txt ${libname}.bc.txt > ${libname}.umibc.txt
     else
         echo "One or both files empty." >&2
