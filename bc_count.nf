@@ -402,6 +402,7 @@ process read_stats_bc {
     read_stats \
         --in_clip ${params.outdir}/clip \
         --in_clust ${params.outdir}/bc \
+        --use_umi False \
         --out_tab "read_stats.txt"
     """
 }
