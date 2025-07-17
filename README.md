@@ -21,7 +21,7 @@ Make sure your sample names are in the format `SAMPLENAME_[RNA,gDNA,DNA,cDNA]`, 
 
 1. Make your project work directory.
 2. Make symbolic links to your raw FASTQ files in a subdirectory. You can do this manually if you have just a single set of data; otherwise, use the example `make_symlink.sh` script to automatically make symlinks to your files if you have data from multiple sequencing runs.
-3. Generate your input configuration file, by running `bin/make_config.py`. Make sure to use the `--single_end` flag.
+3. Generate your input configuration file, by running `bin/make_config.py`. Make sure to use the `--single_end` flag and update `in_fq` directory to point to raw FASTQs, if needed.
 4. Run the pipeline.
 
 Example job submission scripts for steps 2-4 are available in `examples`.
