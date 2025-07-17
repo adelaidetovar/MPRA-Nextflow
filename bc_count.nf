@@ -162,7 +162,7 @@ step 2: for UMI samples - extract UMI
 
 process extract_umi {
     publishDir "${params.outdir}/umi", overwrite: true
-    container 'library://tovar/general/mpra_utilscripts:20240716'
+    container 'library://tovar/default/mpra_utilscripts:20250717'
     memory { 60.GB + (30.GB * task.attempt) }
     time { 8.hours + (4.hours * task.attempt) }
     tag "$libname"
@@ -194,7 +194,7 @@ step 2/3: filter for sequences containing expected adapters
 
 process bc_clip {
     publishDir "${params.outdir}/clip", overwrite: true
-    container 'library://tovar/general/mpra_utilscripts:20240716'
+    container 'library://tovar/default/mpra_utilscripts:20250717'
     cpus 16
     memory '80 GB'
     time '60m'
@@ -226,7 +226,7 @@ process bc_clip {
 
 process bc_clip_umi {
     publishDir "${params.outdir}/clip", overwrite: true
-    container 'library://tovar/general/mpra_utilscripts:20240716'
+    container 'library://tovar/default/mpra_utilscripts:20250717'
     cpus 16
     memory '80 GB'
     time '60m'
@@ -262,7 +262,7 @@ step 3/4: extract barcode seq and move to file used as input for starcode
 
 process prep_umibc {
     publishDir "${params.outdir}/parsed", overwrite: true
-    container 'library://tovar/general/mpra_utilscripts:20240716'
+    container 'library://tovar/default/mpra_utilscripts:20250717'
     tag "$libname"
 
     input:
@@ -292,7 +292,7 @@ step 4/5: cluster barcodes using starcode
 
 process starcode_bc {
     publishDir "${params.outdir}/bc", overwrite: true, mode: "copy"
-    container 'library://tovar/general/mpra_utilscripts:20240716'
+    container 'library://tovar/default/mpra_utilscripts:20250717'
     cpus 10
     memory { 30.GB + 30.GB * task.attempt }
     errorStrategy 'retry'
@@ -318,7 +318,7 @@ process starcode_bc {
 
 process starcode_umi {
     publishDir "${params.outdir}/parsed", overwrite: true
-    container 'library://tovar/general/mpra_utilscripts:20240716'
+    container 'library://tovar/default/mpra_utilscripts:20250717'
     tag "$libname"
     cpus 16
     memory { 80.GB + (40.GB * task.attempt) }
@@ -352,7 +352,7 @@ process starcode_umi {
 
 process starcode_umibc {
     publishDir "${params.outdir}/bc", overwrite: true, mode: "copy"
-    container 'library://tovar/general/mpra_utilscripts:20240716'
+    container 'library://tovar/default/mpra_utilscripts:20250717'
     tag "$libname"
     cpus 16
     memory { 80.GB + (25.GB * task.attempt) }
@@ -385,7 +385,7 @@ step 5/6: calculate read statistics across filtering and clustering steps
 
 process read_stats_bc {
     publishDir "${params.outdir}/postprocess", overwrite: true, mode: "copy"
-    container 'library://tovar/general/mpra_utilscripts:20240716'
+    container 'library://tovar/default/mpra_utilscripts:20250717'
     memory '20 GB'
     time '30m'
 
@@ -409,7 +409,7 @@ process read_stats_bc {
 
 process read_stats_umibc {
     publishDir "${params.outdir}/postprocess", overwrite: true, mode: "copy"
-    container 'library://tovar/general/mpra_utilscripts:20240716'
+    container 'library://tovar/default/mpra_utilscripts:20250717'
     memory '20GB'
     time '30m'
 
@@ -440,7 +440,7 @@ step 6/7: barcode stats
 
 process bc_stats {
     publishDir "${params.outdir}/postprocess", overwrite: true, mode: "copy"
-    container 'library://tovar/general/mpra_utilscripts:20240716'
+    container 'library://tovar/default/mpra_utilscripts:20250717'
     memory '20GB'
     time '30m'
 
@@ -465,7 +465,7 @@ step 7/8: filter clustered barcodes
 
 process filter_bcgroups {
     publishDir "${params.outdir}/postprocess/filt_bc", overwrite: true, mode: "copy"
-    container 'library://tovar/general/mpra_utilscripts:20240716'
+    container 'library://tovar/default/mpra_utilscripts:20250717'
     memory '24GB'
     tag "$libname"
 
@@ -491,7 +491,7 @@ step 8/9: make waterfall plots with clustered barcodes
 
 process waterfall_plot {
     publishDir "${params.outdir}/postprocess/plots", overwrite: true, mode: "copy"
-    container 'library://tovar/general/mpra_utilscripts:20240716'
+    container 'library://tovar/default/mpra_utilscripts:20250717'
     memory '48GB'
     tag "$libname"
 
@@ -518,7 +518,7 @@ step 9/10: combine clustered barcodes and counts across all samples into a joint
 
 process joint_mtx {
     publishDir "${params.outdir}/postprocess/joint_mtx", overwrite: true, mode: "copy"
-    container 'library://tovar/general/mpra_utilscripts:20240716'
+    container 'library://tovar/default/mpra_utilscripts:20250717'
     memory { 40.GB + (40.GB * task.attempt) }
     maxRetries 3
     time '3h'
@@ -554,7 +554,7 @@ step 10/11: matrix math to generate barcode statistics across samples
 
 process sampbysamp_mtx {
     publishDir "${params.outdir}/postprocess/joint_mtx", overwrite: true, mode: "copy"
-    container 'library://tovar/general/mpra_utilscripts:20240716'
+    container 'library://tovar/default/mpra_utilscripts:20250717'
     memory { 20.GB + (30.GB * task.attempt) }
     maxRetries 3
     time '8h'
@@ -583,7 +583,7 @@ step 11/12: plot stats generated in step 10
 
 process sampbysamp_plot {
     publishDir "${params.outdir}/postprocess/plots", overwrite: true, mode: "copy"
-    container 'library://tovar/general/mpra_utilscripts:20240716'
+    container 'library://tovar/default/mpra_utilscripts:20250717'
     memory { 20.GB + (20.GB * task.attempt) }
     maxRetries 3
     time '6h'
